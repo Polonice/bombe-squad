@@ -138,16 +138,35 @@
     }
 
     // --- FONCTIONS ADMIN ---
-    function openAdminPrompt() {
-        const pass = prompt("ENTRER CODE D'ACCÈS IMPÉRIAL :");
-        if(pass === "3516") {
-            role = 'master'; // Un admin est un maître
-            document.getElementById('role-panel').style.display = 'none';
-            document.getElementById('admin-panel').style.display = 'block';
-            showPopup("BIENVENUE, COMMANDANT");
-        }
-    }
+function openAdminPrompt() {
+    const pass = prompt("ENTRER CODE D'ACCÈS IMPÉRIAL :");
+    if(pass === "3516") {
+        // 1. On active le mode Master/Admin
+        role = 'master'; 
+        document.getElementById('role-panel').style.display = 'none';
+        document.getElementById('admin-panel').style.display = 'block';
 
+        // 2. On va chercher le code secret DANS la base de données
+        gameRef.once('value', (snap) => {
+            const data = snap.val();
+            if(data && data.secret) {
+                // On met à jour la variable locale et l'affichage
+                secretCode = data.secret; 
+                document.getElementById('admin-secret-display').innerText = secretCode;
+                
+                // On récupère aussi le temps restant pour que l'admin soit à jour
+                timeLeft = data.timeLeft;
+            } else {
+                // Si la partie n'a pas commencé, on initialise
+                document.getElementById('admin-secret-display').innerText = "PARTIE NON LANCÉE";
+            }
+        });
+
+        showPopup("CONSOLE ADMIN ACTIVÉE");
+    } else if (pass !== null) {
+        alert("ACCÈS REFUSÉ - ALERTE TRANSMISE À L'EMPIRE");
+    }
+}
     function adminSetTime() {
         const newSec = document.getElementById('new-time-input').value;
         if(newSec) gameRef.update({ timeLeft: parseInt(newSec) });
@@ -294,5 +313,6 @@
 </body>
 
 </html>
+
 
 
