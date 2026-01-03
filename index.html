@@ -10,14 +10,21 @@
         @import url('https://imgur.com/a/K9x6Y6Q');
         :root { --hologram: #00d2ff; --sith-red: #ff0000; --empire-orange: #ff9d00; --panel-bg: rgba(20, 22, 25, 0.9); }
         
-        body { 
-            background: #050507 url('https://i.imgur.com/kS5x87J.jpg') no-repeat center center fixed; 
-            background-size: cover;
-            color: var(--hologram); font-family: 'Orbitron', sans-serif;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0;
-            overflow: hidden;
-        }
-
+       body { 
+    /* L'image de fond Star Wars */
+    background: #050507 url('https://imgur.com/a/K9x6Y6Q') no-repeat center center fixed; 
+    background-size: cover; /* Pour que l'image remplisse tout l'écran */
+    
+    color: var(--hologram); 
+    font-family: 'Orbitron', sans-serif;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    height: 100vh; 
+    margin: 0;
+    overflow: hidden;
+}
         /* Titre cliquable pour l'Admin */
         h1 { cursor: default; user-select: none; text-shadow: 0 0 10px var(--hologram); margin-bottom: 20px; }
         h1:active { color: white; }
@@ -313,6 +320,7 @@ function openAdminPrompt() {
 </body>
 
 </html>
+
 
 
 
