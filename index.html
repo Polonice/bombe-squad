@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Star Wars : Console de Sabotage Royale</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
+    <style>
+        @import url('https://i.pinimg.com/564x/2a/c3/15/2ac315e496a35eb3ad0cd5867de78789.jpg');
+        :root { --hologram: #00d2ff; --sith-red: #ff0000; --empire-orange: #ff9d00; --panel-bg: rgba(20, 22, 25, 0.9); }
+        
+        body { 
+            background: #050507 url('https://i.imgur.com/kS5x87J.jpg') no-repeat center center fixed; 
+            background-size: cover;
+            color: var(--hologram); font-family: 'Orbitron', sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0;
+            overflow: hidden;
+        }
+
+        /* Titre cliquable pour l'Admin */
+        h1 { cursor: default; user-select: none; text-shadow: 0 0 10px var(--hologram); margin-bottom: 20px; }
+        h1:active { color: white; }
+
+        /* Panel Admin */
+        #admin-panel { 
+            display:none; background: #111; border: 2px solid var(--empire-orange); 
+            padding: 15px; margin-bottom: 20px; width: 500px; border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 157, 0, 0.3);
+        }
+
+        /* Interface du jeu */
+        .game-wrapper { display: flex; gap: 20px; background: rgba(0,0,0,0.6); padding: 30px; border-radius: 15px; border: 1px solid rgba(0, 210, 255, 0.3); backdrop-filter: blur(5px); }
+        .wires-sidebar { display: flex; flex-direction: column; gap: 15px; width: 140px; }
+        .wire { height: 50px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #fff; transition: 0.2s; border-radius: 4px; text-transform: uppercase; }
+        .wire.cut { opacity: 0.1; pointer-events: none; text-decoration: line-through; }
+
+        .bomb-container { width: 320px; text-align: center; }
+        #timer { font-size: 4rem; color: var(--sith-red); text-shadow: 0 0 15px var(--sith-red); margin-bottom: 10px; }
+        #display { background: rgba(0,0,0,0.8); border: 1px solid var(--hologram); height: 60px; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--hologram); }
+        
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        button { background: #222; border: 1px solid #444; color: var(--empire-orange); padding: 12px; cursor: pointer; font-family: 'Orbitron'; transition: 0.2s; }
+        button:hover { background: #333; border-color: var(--empire-orange); }
+
+        /* Messages */
+        #msg-popup { position: fixed; top: 20px; background: var(--hologram); color: #000; padding: 10px 25px; font-weight: bold; border-radius: 5px; display: none; z-index: 2000; box-shadow: 0 0 15px var(--hologram); }
+        
+        .shaking { animation: shake 0.1s infinite; }
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-2px, -1px); } 100% { transform: translate(0, 0); } }
+    </style>
+</head>
+<body>
+
+    <h1 onclick="openAdminPrompt()">STAR WARS CONSOLE</h1>
+
+    <div id="admin-panel">
+        <div style="color:var(--empire-orange); font-weight:bold; margin-bottom:10px;">CONSOLE DE COMMANDEMENT (ADMIN)</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="background:#000; padding:10px; border:1px solid #333;">
+                🔑 CODE SECRET : <span id="admin-secret-display" style="color:white; font-size:1.2rem;">----</span>
+            </div>
+            <div style="background:#000; padding:10px; border:1px solid #333;">
+                <input type="number" id="new-time-input" placeholder="Sec" style="width:60px; background:#222; color:white; border:1px solid #555;">
+                <button onclick="adminSetTime()" style="padding:2px 5px; font-size:0.6rem;">RÉGLER TEMPS</button>
+            </div>
+            <button onclick="adminTogglePause()" id="btn-pause">STOP BOMBE</button>
+            <button onclick="adminResetGame()" style="background:#400; color:white;">RESET TOTAL</button>
+        </div>
+    </div>
+
+    <div id="role-panel" style="background:var(--panel-bg); padding:20px; border:1px solid var(--hologram); text-align:center;">
+        <p>IDENTIFICATION REQUISE</p>
+        <button onclick="chooseRole('master')">DEVENIR MAÎTRE</button>
+        <button onclick="chooseRole('viewer')">SPECTATEUR</button>
+    </div>
+
+    <div id="msg-popup"></div>
+
+    <div class="game-wrapper" id="bomb">
+        <div class="wires-sidebar">
+            <div class="wire" id="w0" style="background:#900" onclick="handleWire(0)">CELL-A</div>
+            <div class="wire" id="w1" style="background:#009" onclick="handleWire(1)">CELL-B</div>
+            <div class="wire" id="w2" style="background:#090" onclick="handleWire(2)">CELL-C</div>
+            <div class="wire" id="w3" style="background:#990; color:#000" onclick="handleWire(3)">CELL-D</div>
+        </div>
+
+        <div class="bomb-container">
+            <div id="timer">03:00</div>
+            <div id="display">----</div>
+            <div class="keypad">
+                <button onclick="handlePress(1)">1</button><button onclick="handlePress(2)">2</button><button onclick="handlePress(3)">3</button>
+                <button onclick="handlePress(4)">4</button><button onclick="handlePress(5)">5</button><button onclick="handlePress(6)">6</button>
+                <button onclick="handlePress(7)">7</button><button onclick="handlePress(8)">8</button><button onclick="handlePress(9)">9</button>
+                <button onclick="handleReset()" style="color:#666">CLR</button>
+                <button onclick="handlePress(0)">0</button>
+                <button onclick="handleCheck()" style="color:var(--hologram)">OK</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- CONFIGURATION FIREBASE (À COMPLÉTER) ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBuZ3BwcqvxPTP8hzMv_BTTz871vGp8uz0",
+        databaseURL: "https://star-wars-bombe-default-rtdb.europe-west1.firebasedatabase.app/",
+        projectId: "star-wars-bombe",
+        appId: "star-wars-bombe"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const gameRef = db.ref("gameState");
+
+    let role = 'viewer';
+    let localInput = "";
+    let secretCode = "";
+    let gameActive = true;
+    let isPaused = false;
+    let masterInterval = null;
+
+    let wireActions = [
+        { type: "bonus", msg: "ÉNERGIE RÉCUPÉRÉE : +30s" },
+        { type: "boom", msg: "SÉCURITÉ DÉCLENCHÉE : EXPLOSION !" },
+        { type: "win", msg: "SYSTÈME COURT-CIRCUITÉ : RÉUSSITE !" },
+        { type: "nothing", msg: "CIRCUIT MORT : AUCUN EFFET" }
+    ];
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq, dur, type="square") {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + dur);
+    }
+
+    // --- FONCTIONS ADMIN ---
+    function openAdminPrompt() {
+        const pass = prompt("ENTRER CODE D'ACCÈS IMPÉRIAL :");
+        if(pass === "3516") {
+            role = 'master'; // Un admin est un maître
+            document.getElementById('role-panel').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'block';
+            showPopup("BIENVENUE, COMMANDANT");
+        }
+    }
+
+    function adminSetTime() {
+        const newSec = document.getElementById('new-time-input').value;
+        if(newSec) gameRef.update({ timeLeft: parseInt(newSec) });
+    }
+
+    function adminTogglePause() {
+        isPaused = !isPaused;
+        gameRef.update({ isPaused: isPaused, msg: isPaused ? "SYSTÈME FIGÉ" : "REPRISE DU COMPTEUR" });
+        document.getElementById('btn-pause').innerText = isPaused ? "RELANCER" : "STOP BOMBE";
+    }
+
+    function adminResetGame() {
+        gameRef.set(null).then(() => location.reload());
+    }
+
+    // --- LOGIQUE DU JEU ---
+    function chooseRole(r) {
+        role = r;
+        document.getElementById('role-panel').style.display = 'none';
+        if(role === 'master') {
+            initGame();
+        } else {
+            document.querySelectorAll('button, .wire').forEach(el => el.style.pointerEvents = 'none');
+            showPopup("SYNCHRONISATION SPECTATEUR...");
+        }
+    }
+
+    function initGame() {
+        secretCode = Math.floor(1000 + Math.random() * 9000).toString();
+        wireActions.sort(() => Math.random() - 0.5);
+        
+        gameRef.set({
+            timeLeft: 180,
+            display: "----",
+            wires: [false, false, false, false],
+            wireTypes: wireActions,
+            secret: secretCode,
+            status: "ACTIF",
+            isGameOver: false,
+            win: false,
+            isPaused: false
+        });
+        startMasterTimer();
+    }
+
+    function startMasterTimer() {
+        if(masterInterval) clearInterval(masterInterval);
+        masterInterval = setInterval(() => {
+            gameRef.once('value', (snap) => {
+                const data = snap.val();
+                if(!data || data.isGameOver || data.isPaused) return;
+                
+                let t = data.timeLeft;
+                if(t > 0) {
+                    t--;
+                    gameRef.update({ timeLeft: t });
+                } else {
+                    gameRef.update({ isGameOver: true, win: false, msg: "B O O M" });
+                }
+            });
+        }, 1000);
+    }
+
+    function handlePress(n) {
+        if(role !== 'master' || localInput.length >= 4) return;
+        localInput += n;
+        gameRef.update({ display: localInput });
+        beep(600, 0.05);
+    }
+
+    function handleReset() {
+        if(role !== 'master') return;
+        localInput = "";
+        gameRef.update({ display: "----" });
+    }
+
+    function handleCheck() {
+        if(role !== 'master') return;
+        if(localInput === secretCode) {
+            gameRef.update({ isGameOver: true, win: true, msg: "SYSTÈME DÉSAMORCÉ" });
+        } else {
+            beep(100, 0.5, "sawtooth");
+            handleReset();
+            gameRef.update({ msg: "CODE INVALIDE" });
+        }
+    }
+
+    function handleWire(id) {
+        if(role !== 'master') return;
+        gameRef.once('value', (snap) => {
+            const data = snap.val();
+            const action = data.wireTypes[id];
+            gameRef.child('wires').child(id).set(true);
+            
+            if(action.type === "bonus") gameRef.update({ timeLeft: data.timeLeft + 30, msg: action.msg });
+            else if(action.type === "boom") gameRef.update({ isGameOver: true, win: false, msg: action.msg });
+            else if(action.type === "win") gameRef.update({ isGameOver: true, win: true, msg: action.msg });
+            else gameRef.update({ msg: action.msg });
+        });
+    }
+
+    // --- SYNCHRONISATION (LECTURE) ---
+    gameRef.on("value", (snapshot) => {
+        const data = snapshot.val();
+        if(!data) return;
+
+        secretCode = data.secret;
+        if(document.getElementById('admin-secret-display')) 
+            document.getElementById('admin-secret-display').innerText = secretCode;
+
+        // Interface
+        const m = Math.floor(data.timeLeft / 60);
+        const s = data.timeLeft % 60;
+        document.getElementById('timer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        document.getElementById('display').innerText = data.display;
+        
+        if(!data.isGameOver && !data.isPaused) beep(150, 0.01, "sine");
+        if(data.timeLeft <= 15) document.getElementById('bomb').classList.add('shaking');
+        else document.getElementById('bomb').classList.remove('shaking');
+
+        // Fils
+        data.wires.forEach((cut, i) => {
+            if(cut) document.getElementById('w'+i).classList.add('cut');
+        });
+
+        if(data.msg) showPopup(data.msg);
+
+        if(data.isGameOver) {
+            gameActive = false;
+            document.getElementById('timer').style.color = data.win ? "#0f0" : "#f00";
+            if(!data.win) {
+                document.body.style.background = "#200";
+                beep(60, 1, "sawtooth");
+            }
+        }
+    });
+
+    function showPopup(txt) {
+        const p = document.getElementById('msg-popup');
+        p.innerText = txt; p.style.display = 'block';
+        setTimeout(() => p.style.display = 'none', 3000);
+    }
+</script>
+</body>
+</html>
